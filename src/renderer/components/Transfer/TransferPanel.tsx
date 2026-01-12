@@ -1,14 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     Upload, Download, Play, Pause, Square, RotateCcw,
     Folder, HardDrive, Cloud, Trash2, Archive, ChevronDown,
-    Plus, X, Server, Settings, FileText, CheckCircle, Loader2
+    Plus, X, Server, Settings, FileText, CheckCircle, Loader2, Activity
 } from 'lucide-react';
-import { useServerStore, useTransferStore, useTabStore, useRcloneConfigStore, useLogStore } from '../../stores';
-import { TransferJob } from '../../../shared/types';
+import { useServerStore, useTransferStore, useTabStore, useRcloneConfigStore, useLogStore, useUploadedFilesStore } from '../../stores';
+import { TransferJob, UploadedFileInfo } from '../../../shared/types';
 import ProgressBar from './ProgressBar';
 import PathBrowserModal from '../PathBrowser/PathBrowserModal';
 import RcloneConfigModal from '../RcloneConfig/RcloneConfigModal';
+import ServerActivityPanel from './ServerActivityPanel';
+import FileProgressTable from './FileProgressTable';
 import './Transfer.css';
 
 interface DestinationConfig {
@@ -57,10 +59,17 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
 
     // Logs
     const logs = useLogStore(state => state.logs);
+    const clearLogs = useLogStore(state => state.clearLogs);
+
+    // Uploaded files store
+    const { addFile, updateFile, clearFilesForJob, getFilesForJob } = useUploadedFilesStore();
 
     // Auto-scroll ref for activity log
     const logsListRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
+
+    // Activity log tabs - 'general' or server ID
+    const [activeLogTab, setActiveLogTab] = useState<string>('general');
 
     // Get config from store for this tab
     const storedConfig = getTabConfig(tabId);
@@ -85,6 +94,22 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
     useEffect(() => {
         loadRcloneConfigs();
     }, [loadRcloneConfigs]);
+
+    // Listen for file uploaded and progress events
+    useEffect(() => {
+        const unsubUploaded = window.electron.transfer.onFileUploaded((data) => {
+            addFile(data.jobId, data.file as UploadedFileInfo);
+        });
+
+        const unsubProgress = window.electron.transfer.onFileProgress((data) => {
+            updateFile(data.jobId, data.file as UploadedFileInfo);
+        });
+
+        return () => {
+            unsubUploaded();
+            unsubProgress();
+        };
+    }, [addFile, updateFile]);
 
     // Helper to get selected rclone config
     const getSelectedRcloneConfig = (configId: string) => {
@@ -114,6 +139,7 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
 
     const [isExpanded, setIsExpanded] = useState(true);
     const [activeJob, setActiveJob] = useState<TransferJob | null>(null);
+    const [jobRunning, setJobRunning] = useState(false); // Track running state explicitly
 
     // Handle scroll to detect user scroll
     const handleLogsScroll = useCallback(() => {
@@ -146,17 +172,25 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
         return Math.min(completedSteps.size * 16.67, 99);
     }, [activeJob, filteredLogs]);
 
-    // Check if job is finished
+    // Check if job is finished (based on logs)
     const isJobFinished = useCallback(() => {
         return filteredLogs.some(log => log.message.includes('=== Transfer job completed'));
     }, [filteredLogs]);
 
-    // Check if job is running (has started but not finished)
+    // Update jobRunning when job finishes or fails
+    useEffect(() => {
+        if (filteredLogs.some(log =>
+            log.message.includes('=== Transfer job completed') ||
+            log.message.includes('Transfer job failed')
+        )) {
+            setJobRunning(false);
+        }
+    }, [filteredLogs]);
+
+    // Check if job is running - use explicit state
     const isJobRunning = useCallback(() => {
-        const hasStarted = filteredLogs.some(log => log.message.includes('=== Starting transfer job'));
-        const hasFinished = filteredLogs.some(log => log.message.includes('=== Transfer job completed'));
-        return activeJob && hasStarted && !hasFinished;
-    }, [activeJob, filteredLogs]);
+        return jobRunning;
+    }, [jobRunning]);
 
     // Sync activeJob from store if tab has a jobId
     const currentTab = tabs.find(t => t.id === tabId);
@@ -223,6 +257,16 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
     };
 
     const handleStart = async () => {
+        // Clear previous logs and reset state before starting new transfer
+        clearLogs();
+        setAutoScroll(true);
+        setJobRunning(true); // Mark job as running
+
+        // Clear previous uploaded files if there was an active job
+        if (activeJob) {
+            clearFilesForJob(activeJob.id);
+        }
+
         const job: TransferJob = {
             id: `job_${generateId()}`,
             name: config.name,
@@ -279,7 +323,7 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
         <>
             <div className="transfer-panel">
                 {/* Configuration Section */}
-                <div className={`config-section glass ${isExpanded ? 'expanded' : ''}`}>
+                <div className={`config-section glass ${isExpanded ? 'expanded' : 'collapsed'}`}>
                     <div
                         className="config-header"
                         onClick={() => setIsExpanded(!isExpanded)}
@@ -486,6 +530,7 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
                                                         onClick={() => {
                                                             cancelJob(activeJob.id);
                                                             setActiveJob(null);
+                                                            setJobRunning(false);
                                                         }}
                                                         title="Cancel"
                                                     >
@@ -494,65 +539,105 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
                                                 </div>
                                             )}
 
-                                            <div className="queue-list compact">
-                                                {isJobFinished() ? (
-                                                    <div className="queue-finished">
-                                                        <CheckCircle size={20} />
-                                                        <span>Transfer completed successfully!</span>
-                                                    </div>
-                                                ) : activeJob.items.length === 0 ? (
-                                                    <div className="queue-preparing">
-                                                        <Loader2 size={16} className="animate-spin" />
-                                                        <span>Preparing files...</span>
-                                                    </div>
-                                                ) : (
-                                                    activeJob.items.map(item => (
-                                                        <div key={item.id} className="queue-item">
-                                                            <div className="queue-item-header">
-                                                                <span className="file-name" title={item.fileName}>{item.fileName}</span>
-                                                                <span className={`status-text ${item.status}`}>{getStatusLabel(item.status)}</span>
-                                                            </div>
-                                                            <div className="queue-destinations">
-                                                                <span>To: </span>
-                                                                {config.destinations.map(d => {
-                                                                    const s = servers.find(sv => sv.id === d.serverId);
-                                                                    return <span key={d.id} className="dest-tag">{s?.name || 'Unknown'}</span>;
-                                                                })}
-                                                            </div>
-                                                            <div className="queue-progress-wrapper">
-                                                                <ProgressBar value={item.progress} status={item.status} />
-                                                            </div>
-                                                            {item.speed && <div className="queue-speed">{item.speed}</div>}
+                                            {/* Split Layout: Files on top, Activity logs on bottom */}
+                                            <div className="queue-content-split">
+                                                {/* TOP: Files Section */}
+                                                <div className="queue-files-section">
+                                                    {isJobFinished() ? (
+                                                        <div className="queue-finished">
+                                                            <CheckCircle size={20} />
+                                                            <span>Transfer completed successfully!</span>
                                                         </div>
-                                                    ))
-                                                )}
-                                            </div>
-
-                                            {/* Transfer Logs */}
-                                            <div className="queue-logs">
-                                                <div className="queue-logs-header">
-                                                    <FileText size={14} />
-                                                    <span>Activity Log</span>
-                                                    {!autoScroll && (
-                                                        <span className="auto-scroll-hint">(Scroll to bottom to auto-scroll)</span>
+                                                    ) : activeJob.items.length === 0 && getFilesForJob(activeJob.id).length === 0 ? (
+                                                        <div className="queue-preparing">
+                                                            <Loader2 size={16} className="animate-spin" />
+                                                            <span>Preparing files...</span>
+                                                        </div>
+                                                    ) : (
+                                                        /* Uploaded Files Progress Table */
+                                                        <div className="uploaded-files-section">
+                                                            <div className="uploaded-files-header">
+                                                                <Cloud size={14} />
+                                                                <span>Files on Drive</span>
+                                                                <span className="file-count">{getFilesForJob(activeJob.id).length} file(s)</span>
+                                                            </div>
+                                                            <FileProgressTable files={getFilesForJob(activeJob.id)} />
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div
-                                                    className="queue-logs-list"
-                                                    ref={logsListRef}
-                                                    onScroll={handleLogsScroll}
-                                                >
-                                                    {filteredLogs.slice(-30).map((log, idx) => (
-                                                        <div key={log.id || idx} className={`queue-log-entry log-${log.level}`}>
-                                                            <span className="log-time">
-                                                                {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                            </span>
-                                                            <span className="log-msg">{log.message}</span>
-                                                        </div>
-                                                    ))}
-                                                    {filteredLogs.length === 0 && (
-                                                        <div className="queue-logs-empty">Waiting for activity...</div>
-                                                    )}
+
+                                                {/* BOTTOM: Activity Log Section */}
+                                                <div className="queue-logs">
+                                                    <div className="activity-tabs-header">
+                                                        <Activity size={14} />
+                                                        <span>Activity Log</span>
+                                                    </div>
+
+                                                    {/* Tab Buttons */}
+                                                    <div className="activity-tabs">
+                                                        <button
+                                                            className={`activity-tab ${activeLogTab === 'general' ? 'active' : ''}`}
+                                                            onClick={() => setActiveLogTab('general')}
+                                                        >
+                                                            <FileText size={12} />
+                                                            General
+                                                        </button>
+                                                        {config.sourceServerId && sourceServer && (
+                                                            <button
+                                                                className={`activity-tab source ${activeLogTab === config.sourceServerId ? 'active' : ''}`}
+                                                                onClick={() => setActiveLogTab(config.sourceServerId)}
+                                                            >
+                                                                <Upload size={12} />
+                                                                {sourceServer.name}
+                                                            </button>
+                                                        )}
+                                                        {config.destinations.map((dest, idx) => {
+                                                            const destServer = servers.find(s => s.id === dest.serverId);
+                                                            if (!destServer) return null;
+                                                            return (
+                                                                <button
+                                                                    key={`dest-${dest.id}-${dest.serverId}`}
+                                                                    className={`activity-tab destination ${activeLogTab === dest.serverId ? 'active' : ''}`}
+                                                                    onClick={() => setActiveLogTab(dest.serverId)}
+                                                                >
+                                                                    <Download size={12} />
+                                                                    {destServer.name}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {/* Tab Content */}
+                                                    <div className="activity-tab-content">
+                                                        {activeLogTab === 'general' ? (
+                                                            <div className="general-logs-list">
+                                                                {filteredLogs.filter(log => !log.serverId).length === 0 ? (
+                                                                    <div className="no-logs">Waiting for activity...</div>
+                                                                ) : (
+                                                                    filteredLogs.filter(log => !log.serverId).map((log, idx) => (
+                                                                        <div key={log.id || idx} className="general-log-entry">
+                                                                            <span className="log-time">
+                                                                                {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                                                                            </span>
+                                                                            <span className="log-msg">{log.message}</span>
+                                                                        </div>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <ServerActivityPanel
+                                                                serverId={activeLogTab}
+                                                                serverName={
+                                                                    activeLogTab === config.sourceServerId
+                                                                        ? sourceServer?.name || 'Source'
+                                                                        : servers.find(s => s.id === activeLogTab)?.name || 'Destination'
+                                                                }
+                                                                type={activeLogTab === config.sourceServerId ? 'source' : 'destination'}
+                                                                jobId={activeJob?.id}
+                                                                isActive={isJobRunning()}
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>
@@ -690,6 +775,7 @@ const TransferPanel: React.FC<TransferPanelProps> = ({ tabId }) => {
                                             if (activeJob) {
                                                 cancelJob(activeJob.id);
                                                 setActiveJob(null);
+                                                setJobRunning(false);
                                             }
                                         }}
                                     >

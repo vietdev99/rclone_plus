@@ -33,6 +33,8 @@ const IPC_CHANNELS = {
     TRANSFER_CANCEL: 'transfer:cancel',
     TRANSFER_RETRY: 'transfer:retry',
     TRANSFER_PROGRESS: 'transfer:progress',
+    TRANSFER_FILE_UPLOADED: 'transfer:fileUploaded',
+    TRANSFER_FILE_PROGRESS: 'transfer:fileProgress',
 
     // Config
     CONFIG_GET: 'config:get',
@@ -97,6 +99,8 @@ export interface ElectronAPI {
         cancel: (jobId: string) => Promise<void>;
         retry: (jobId: string, itemId: string) => Promise<void>;
         onProgress: (callback: (data: { jobId: string; itemId: string; progress: number; status: string }) => void) => () => void;
+        onFileUploaded: (callback: (data: { jobId: string; file: unknown }) => void) => () => void;
+        onFileProgress: (callback: (data: { jobId: string; file: unknown }) => void) => () => void;
     };
 
     // Config
@@ -168,6 +172,16 @@ const electronAPI: ElectronAPI = {
             const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; itemId: string; progress: number; status: string }) => callback(data);
             ipcRenderer.on(IPC_CHANNELS.TRANSFER_PROGRESS, handler);
             return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_PROGRESS, handler);
+        },
+        onFileUploaded: (callback) => {
+            const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; file: unknown }) => callback(data);
+            ipcRenderer.on(IPC_CHANNELS.TRANSFER_FILE_UPLOADED, handler);
+            return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_FILE_UPLOADED, handler);
+        },
+        onFileProgress: (callback) => {
+            const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; file: unknown }) => callback(data);
+            ipcRenderer.on(IPC_CHANNELS.TRANSFER_FILE_PROGRESS, handler);
+            return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_FILE_PROGRESS, handler);
         },
     },
 

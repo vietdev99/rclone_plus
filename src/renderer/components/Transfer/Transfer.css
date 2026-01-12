@@ -1,15 +1,19 @@
 .transfer-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    /* Reduced gap */
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
-/* Config Section */
+/* Config Section - expandable header */
 .config-section {
     border-radius: var(--border-radius-lg);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
 }
 
 .config-header {
@@ -44,6 +48,11 @@
 .config-body {
     padding: 0 20px 20px;
     animation: slideUp var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .config-row {
@@ -53,7 +62,7 @@
 }
 
 .config-field {
-    flex: 1;
+    /* No flex - natural width */
 }
 
 .config-field.full-width {
@@ -80,16 +89,15 @@
 .transfer-panels {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 16px;
     margin-top: 16px;
     transition: grid-template-columns 0.3s ease;
     flex: 1;
     min-height: 0;
-    /* Important for nested scroll */
 }
 
 .transfer-panels.has-queue {
-    grid-template-columns: 1fr 1.1fr 1fr;
+    grid-template-columns: 260px 1.3fr 1fr;
 }
 
 .transfer-panel-source,
@@ -97,16 +105,43 @@
 .transfer-panel-queue {
     background: var(--bg-tertiary);
     border-radius: var(--border-radius);
-    padding: 20px;
+    padding: 16px;
     border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Source panel - compact stack layout */
+.transfer-panel-source {
+    overflow-y: auto;
+}
+
+/* Source panel fields should be compact */
+.transfer-panel-source .config-field {
+    margin-bottom: 12px;
+}
+
+.transfer-panel-source .rclone-config {
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.transfer-panel-source .transfer-options {
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+/* Destinations panel should scroll internally */
+.transfer-panel-destinations {
+    overflow-y: auto;
 }
 
 .transfer-panel-queue {
-    min-height: 400px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .queue-actions-compact {
@@ -306,17 +341,25 @@
 /* Checkbox Label */
 .checkbox-label {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     font-size: 13px;
     color: var(--text-primary);
     cursor: pointer;
+    line-height: 1.4;
 }
 
 .checkbox-label input[type="checkbox"] {
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
     accent-color: var(--accent-primary);
+}
+
+.checkbox-label svg {
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 /* No Destinations State */
@@ -575,15 +618,34 @@
     font-size: 13px;
 }
 
-/* Queue Logs */
-.queue-logs {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
-    flex: 1;
-    min-height: 0;
+/* Queue Content Split Layout - Files top (50%), Logs bottom (50%) */
+.queue-content-split {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.queue-files-section {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 8px;
+}
+
+/* Queue Logs - fixed height at bottom */
+.queue-logs {
+    flex: 1;
+    min-height: 120px;
+    max-height: 50%;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+    overflow: hidden;
 }
 
 .queue-logs-header {
@@ -713,4 +775,558 @@
 
 .btn-danger:hover {
     background: #dc2626;
+}
+
+/* ===== Server Activity Panel ===== */
+.server-activity-panel {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.server-activity-panel.source {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.server-activity-panel.destination {
+    border-left: 3px solid var(--success);
+}
+
+.server-activity-panel.active {
+    border-color: var(--accent-primary);
+}
+
+.server-activity-panel.completed .server-activity-header {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.server-activity-panel.error .server-activity-header {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.server-activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.server-activity-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.server-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.server-name {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.server-type-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.server-type-badge.source {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--accent-primary);
+}
+
+.server-type-badge.destination {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--success);
+}
+
+.server-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.status-icon {
+    flex-shrink: 0;
+}
+
+.status-icon.success {
+    color: var(--success);
+}
+
+.status-icon.error {
+    color: var(--error);
+}
+
+.status-icon.uploading {
+    color: var(--accent-primary);
+}
+
+.status-icon.downloading {
+    color: var(--success);
+}
+
+.status-icon.idle {
+    color: var(--text-muted);
+}
+
+.status-icon.spinning {
+    animation: spin 1s linear infinite;
+    color: var(--accent-primary);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.server-activity-logs {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+    font-size: 11px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.server-activity-logs .no-logs {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 8px 0;
+    text-align: center;
+}
+
+.server-activity-logs .log-entry {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+    line-height: 1.4;
+}
+
+.server-activity-logs .log-entry .log-time {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.server-activity-logs .log-entry .log-message {
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+.server-activity-logs .log-entry.error .log-message {
+    color: var(--error);
+}
+
+.server-activity-logs .log-entry.warn .log-message {
+    color: var(--warning);
+}
+
+/* ===== Activity Streams Container ===== */
+.activity-streams {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.activity-streams-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-streams-header .stream-count {
+    background: var(--bg-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
+/* General logs section */
+.general-logs-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.general-logs-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.general-logs-list {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    font-size: 11px;
+    font-family: monospace;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    padding: 8px;
+}
+
+.general-log-entry {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.general-log-entry .log-time {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.general-log-entry .log-msg {
+    color: var(--text-secondary);
+}
+
+/* ===== Activity Tabs ===== */
+.activity-tabs-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.activity-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-tab {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.activity-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.activity-tab.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.activity-tab.source.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.activity-tab.destination.active {
+    background: var(--success);
+    border-color: var(--success);
+}
+
+.activity-tab-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.activity-tab-content .general-logs-list {
+    height: 100%;
+    /* max-height: 180px; Removed to allow full height */
+}
+
+.activity-tab-content .server-activity-panel {
+    margin-bottom: 0;
+    border: none;
+    border-radius: 0;
+}
+
+.activity-tab-content .server-activity-header {
+    display: none;
+}
+
+.activity-tab-content .server-activity-logs {
+    border-top: none;
+    height: 100%;
+}
+
+.activity-tab-content .no-logs {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 20px;
+    text-align: center;
+    font-size: 12px;
+}
+
+/* ===== File Progress Table ===== */
+.file-progress-table {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    font-size: 11px;
+}
+
+.file-progress-header {
+    display: flex;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 10px;
+}
+
+.file-progress-body {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.file-progress-row {
+    display: flex;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    align-items: flex-start;
+}
+
+.file-progress-row:last-child {
+    border-bottom: none;
+}
+
+.file-progress-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.file-col {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.file-name-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name-col .file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-time-col {
+    flex: 0 0 50px;
+    color: var(--text-muted);
+    font-family: monospace;
+}
+
+.file-destinations-col {
+    flex: 2;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.file-progress-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--text-muted);
+    gap: 8px;
+    font-size: 12px;
+}
+
+/* Destination Progress Chip */
+.dest-progress-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    font-size: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.dest-progress-chip.pending {
+    color: var(--text-muted);
+}
+
+.dest-progress-chip.downloading {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.dest-progress-chip.extracting {
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
+.dest-progress-chip.completed {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.dest-progress-chip.failed {
+    border-color: var(--error);
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.dest-progress-chip .dest-name {
+    max-width: 60px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.dest-progress-chip .dest-status {
+    font-weight: 600;
+    min-width: 35px;
+    text-align: right;
+}
+
+.dest-progress-chip .status-icon {
+    flex-shrink: 0;
+}
+
+.dest-progress-chip .status-icon.spinning {
+    animation: spin 1s linear infinite;
+}
+
+.dest-progress-chip .status-icon.completed {
+    color: var(--success);
+}
+
+.dest-progress-chip .status-icon.failed {
+    color: var(--error);
+}
+
+.dest-progress-chip .status-icon.downloading {
+    color: var(--accent-primary);
+}
+
+.dest-progress-chip .status-icon.extracting {
+    color: var(--warning);
+}
+
+.dest-progress-chip .status-icon.pending {
+    color: var(--text-muted);
+}
+
+.dest-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.dest-progress-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    transition: width 0.3s ease;
+}
+
+/* ===== Uploaded Files Section ===== */
+.uploaded-files-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.uploaded-files-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.uploaded-files-header .file-count {
+    background: var(--accent-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    margin-left: auto;
+}
+
+/* File progress table scrollable */
+.uploaded-files-section .file-progress-table {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.uploaded-files-section .file-progress-body {
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
 }

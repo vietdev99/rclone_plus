@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { SSHConfig, TransferJob, TransferTab, AppConfig, DEFAULT_APP_CONFIG, RcloneConfig } from '../../shared/types';
+import { SSHConfig, TransferJob, TransferTab, AppConfig, DEFAULT_APP_CONFIG, RcloneConfig, UploadedFileInfo } from '../../shared/types';
 
 // ========== Server Store ==========
 interface ServerState {
@@ -310,26 +310,45 @@ interface LogEntry {
     timestamp: string;
     level: string;
     message: string;
+    serverId?: string; // Optional: which server this log belongs to
+    jobId?: string;    // Optional: which job this log belongs to
 }
 
 interface LogState {
     logs: LogEntry[];
     addLog: (entry: LogEntry) => void;
     clearLogs: () => void;
+    clearLogsForJob: (jobId: string) => void;
+    getLogsForServer: (serverId: string) => LogEntry[];
+    getGeneralLogs: () => LogEntry[];
     loadLogs: () => Promise<void>;
 }
 
-export const useLogStore = create<LogState>((set) => ({
+export const useLogStore = create<LogState>((set, get) => ({
     logs: [],
 
     addLog: (entry) => {
         set(state => ({
-            logs: [...state.logs.slice(-999), entry], // Keep last 1000 logs
+            logs: [...state.logs.slice(-1999), entry], // Keep last 2000 logs
         }));
     },
 
     clearLogs: () => {
         set({ logs: [] });
+    },
+
+    clearLogsForJob: (jobId: string) => {
+        set(state => ({
+            logs: state.logs.filter(log => log.jobId !== jobId),
+        }));
+    },
+
+    getLogsForServer: (serverId: string) => {
+        return get().logs.filter(log => log.serverId === serverId);
+    },
+
+    getGeneralLogs: () => {
+        return get().logs.filter(log => !log.serverId);
     },
 
     loadLogs: async () => {
@@ -395,5 +414,58 @@ export const useRcloneConfigStore = create<RcloneConfigState>((set, get) => ({
 
     getConfigById: (id) => {
         return get().configs.find(c => c.id === id);
+    },
+}));
+
+// ========== Uploaded Files Store ==========
+interface UploadedFilesState {
+    files: Record<string, UploadedFileInfo[]>; // jobId -> files
+    addFile: (jobId: string, file: UploadedFileInfo) => void;
+    updateFile: (jobId: string, file: UploadedFileInfo) => void;
+    clearFilesForJob: (jobId: string) => void;
+    getFilesForJob: (jobId: string) => UploadedFileInfo[];
+}
+
+export const useUploadedFilesStore = create<UploadedFilesState>((set, get) => ({
+    files: {},
+
+    addFile: (jobId, file) => {
+        set(state => {
+            const jobFiles = state.files[jobId] || [];
+            const existingIndex = jobFiles.findIndex(f => f.id === file.id);
+            if (existingIndex >= 0) {
+                // Update existing file
+                const newJobFiles = [...jobFiles];
+                newJobFiles[existingIndex] = file;
+                return { files: { ...state.files, [jobId]: newJobFiles } };
+            } else {
+                // Add new file
+                return { files: { ...state.files, [jobId]: [...jobFiles, file] } };
+            }
+        });
+    },
+
+    updateFile: (jobId, file) => {
+        set(state => {
+            const jobFiles = state.files[jobId] || [];
+            const existingIndex = jobFiles.findIndex(f => f.id === file.id);
+            if (existingIndex >= 0) {
+                const newJobFiles = [...jobFiles];
+                newJobFiles[existingIndex] = file;
+                return { files: { ...state.files, [jobId]: newJobFiles } };
+            }
+            return state;
+        });
+    },
+
+    clearFilesForJob: (jobId) => {
+        set(state => {
+            const { [jobId]: removed, ...rest } = state.files;
+            return { files: rest };
+        });
+    },
+
+    getFilesForJob: (jobId) => {
+        return get().files[jobId] || [];
     },
 }));

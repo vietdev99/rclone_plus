@@ -11,7 +11,12 @@
       "Bash(cat:*)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit - RClone Plus v1.0.0\n\nFeatures:\n- Server-to-server file transfer via Google Drive\n- SSH server management with connection pooling\n- Rclone integration \\(upload/download/delete\\)\n- 3-panel transfer interface\n- Real-time progress tracking with step-by-step logging\n- Session persistence \\(tabs, configurations\\)\n- Path browser with create folder support\n- Dark mode UI\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(npm run dist:*)"
     ]
   }
 }

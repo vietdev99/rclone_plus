@@ -98,6 +98,24 @@ export interface TransferJob {
     updatedAt: string;
 }
 
+// Track file sync progress per destination
+export interface FileDestinationProgress {
+    serverId: string;
+    serverName: string;
+    status: 'pending' | 'downloading' | 'extracting' | 'completed' | 'failed';
+    progress: number; // 0-100
+    error?: string;
+}
+
+export interface UploadedFileInfo {
+    id: string;
+    fileName: string;
+    drivePath: string;
+    uploadedAt: string;
+    size?: string;
+    destinations: FileDestinationProgress[];
+}
+
 // ========== Tab Types ==========
 export interface TransferTab {
     id: string;
@@ -154,6 +172,8 @@ export const IPC_CHANNELS = {
     TRANSFER_CANCEL: 'transfer:cancel',
     TRANSFER_RETRY: 'transfer:retry',
     TRANSFER_PROGRESS: 'transfer:progress',
+    TRANSFER_FILE_UPLOADED: 'transfer:fileUploaded',
+    TRANSFER_FILE_PROGRESS: 'transfer:fileProgress',
 
     // Config
     CONFIG_GET: 'config:get',

@@ -27,6 +27,9 @@ function createWindow() {
         frame: true,
         show: false, // Don't show until ready
         backgroundColor: '#0f0f23', // Match app background to prevent white flash
+        icon: isDev
+            ? path.join(__dirname, '../../resources/icon.png')
+            : path.join(__dirname, '../renderer/icon.png'),
     });
     console.log('[Main] BrowserWindow created');
 
@@ -41,6 +44,7 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
+        // In production, __dirname is dist/main/, so we need to go up 1 level to reach dist/renderer/
         mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
     }
 

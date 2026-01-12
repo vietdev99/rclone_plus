@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Server, Plus, Settings, FileText, Cloud } from 'lucide-react';
+import { Plus, Cloud } from 'lucide-react';
 import { useServerStore } from '../../stores';
 import ServerModal from '../SSH/ServerModal';
 import RcloneConfigModal from '../RcloneConfig/RcloneConfigModal';
@@ -32,7 +32,7 @@ const Sidebar = () => {
             <div className="sidebar-header">
                 <div className="sidebar-logo">
                     <div className="sidebar-logo-icon">
-                        <Server size={20} />
+                        <img src="/icon.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                     <h1>RClone Plus</h1>
                 </div>
@@ -74,18 +74,6 @@ const Sidebar = () => {
                         <Cloud size={18} />
                         <div className="server-info">
                             <div className="server-name">Rclone Config</div>
-                        </div>
-                    </div>
-                    <div className="server-item">
-                        <FileText size={18} />
-                        <div className="server-info">
-                            <div className="server-name">Logs</div>
-                        </div>
-                    </div>
-                    <div className="server-item">
-                        <Settings size={18} />
-                        <div className="server-info">
-                            <div className="server-name">Settings</div>
                         </div>
                     </div>
                 </div>
