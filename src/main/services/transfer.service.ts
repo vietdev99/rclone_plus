@@ -303,7 +303,11 @@ class TransferService {
             // Update file destination status to downloading
             this.broadcastFileDestinationProgress(job.id, file.id, destServerId, 'downloading', 0);
 
-            const downloadPath = `/tmp/${file.fileName}`;
+            // Ensure destination folder exists
+            await sshService.exec(destServer.id, `mkdir -p "${job.destinationFolder}"`);
+
+            // Download directly to destination folder instead of /tmp
+            const downloadPath = `${job.destinationFolder}/${file.fileName}`;
 
             logService.info(`[Download] ${destServer.name}: Downloading ${file.fileName}`, undefined, job.id, destServerId);
 
@@ -329,10 +333,8 @@ class TransferService {
                 await sshService.exec(destServer.id, `unzip -o "${downloadPath}" -d "${job.destinationFolder}"`);
                 await sshService.exec(destServer.id, `rm -f "${downloadPath}"`);
             } else {
-                // Move to destination folder (either no extract, or deferred extract for splits)
-                const destZipPath = `${job.destinationFolder}/${file.fileName}`;
-                await sshService.exec(destServer.id, `mv "${downloadPath}" "${destZipPath}"`);
-                logService.info(`[Download] ${destServer.name}: Saved to ${destZipPath}${isSplitPart && job.autoExtract ? ' (waiting for bulk extract)' : ''}`, undefined, job.id, destServerId);
+                // File is already in destination folder (either no extract, or deferred extract for splits)
+                logService.info(`[Download] ${destServer.name}: Saved to ${downloadPath}${isSplitPart && job.autoExtract ? ' (waiting for bulk extract)' : ''}`, undefined, job.id, destServerId);
             }
 
             // Delete from Drive if configured
